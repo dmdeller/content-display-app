@@ -106,24 +106,28 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
                 return
             }
             
-            do {
-                try self.resetData()
+            // Our managedObjectContext belongs to the main thread, so it must not be accessed from other threads.
+            // There are ways around this when it is desirable to perform Core Data operations in background threads, but beyond the scope of this current exercise.
+            OperationQueue.main.addOperation {
+                do {
+                    try self.resetData()
+                    
+                } catch let error {
+                    NSLog("Error resetting Core Data - cannot display new data. Error: \(error)")
+                    self.showAlert(title: "Unable to show new data at this time", message: "If the problem persists, please try deleting and reinstalling the app")
+                    return
+                }
                 
-            } catch let error {
-                NSLog("Error resetting Core Data - cannot display new data. Error: \(error)")
-                self.showAlert(title: "Unable to show new data at this time", message: "If the problem persists, please try deleting and reinstalling the app")
-                return
-            }
-            
-            do {
-                try self.parseJSON(data: data)
+                do {
+                    try self.parseJSON(data: data)
+                    
+                } catch let error {
+                    NSLog("Error parsing JSON: \(error)")
+                }
                 
-            } catch let error {
-                NSLog("Error parsing JSON: \(error)")
+                self.saveData()
+                self.reloadData()
             }
-            
-            self.saveData()
-            self.reloadData()
         })
         dataTask.resume()
         
@@ -169,9 +173,7 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
     
     func reloadData(animated: Bool = false) {
         loadData()
-        OperationQueue.main.addOperation {
-            self.tableView.reloadData()
-        }
+        self.tableView.reloadData()
     }
     
     func parseJSON(data: Data) throws {
